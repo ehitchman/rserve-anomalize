@@ -1,0 +1,59 @@
+SCRIPT_BOOL("
+
+# Load necessary libraries
+library(tidyverse) # tidyverse includes dplyr
+library(anomalize)
+library(tibbletime)
+
+# Initialize a vector to store the output anomaly boolean values
+outputAnomalyBoolVector <- vector()
+
+# Initialize a data frame to store Tableau data
+tableauDF <- data.frame()
+
+# Retrieve arguments passed from Tableau
+twbIndex <- .arg1
+twbData <- .arg2
+
+# Check if the input data is not empty and is of correct type
+if (is.null(twbIndex) | is.null(twbData)) {
+  stop('Error: Input data is NULL.')
+}
+if (!is.vector(twbIndex) | !is.vector(twbData)) {
+  stop('Error: Input data should be vectors.')
+}
+
+# Populate the tableauDF with the data from Tableau
+for (valueindex in seq_along(twbIndex)) {
+  tableauDF[valueindex,1] <- twbIndex[valueindex]
+  tableauDF[valueindex,2] <- twbData[valueindex]
+} 
+
+# Assign column names to the dataframe
+colnames(tableauDF) <- c('Day', 'Impressions')
+
+# Convert 'Day' column to Date format
+tableauDF$Day <- as.Date(tableauDF$Day)
+
+# Transform the dataframe into a tbl_time object
+tableauDFtbltime <- as_tibble(tableauDF)
+tableauDFtbltime <- as_tbl_time(tableauDFtbltime, index = Day) 
+
+# Perform time series decomposition and anomaly detection
+anomalyModelDF <- tableauDFtbltime %>%
+  time_decompose(Impressions, method = 'stl', frequency = '1 weeks', trend = 'auto') %>%
+  anomalize(remainder, 'gesd') %>%
+  time_recompose()
+
+# Initialize the output vector with the correct length
+outputAnomalyBoolVector <- vector(mode = 'logical', length = nrow(anomalyModelDF))
+
+# Loop through the anomaly model dataframe to populate the boolean vector
+for (value in seq_along(1:nrow(anomalyModelDF))) {
+  outputAnomalyBoolVector[value] <- anomalyModelDF[value,8] == 'Yes'
+}
+
+# Return the outputAnomalyBoolVector
+return(outputAnomalyBoolVector)
+
+", ATTR([Day]), SUM([Impressions]))
