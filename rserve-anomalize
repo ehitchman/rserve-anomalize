@@ -2,7 +2,7 @@ SCRIPT_BOOL("
 
 # This is the exact formula that is to be used inside of Tableau Desktop
 #  This formula will result in a boolean based on whether the timeseries
-#  contains any anomalies or not
+#  contains any anomalies or not based on weekly 'seasonality'
 
 # Load necessary libraries
 library(tidyverse) # tidyverse includes dplyr
